@@ -6,7 +6,7 @@
 git clone <URL OF THIS REPOSITORY>
 
 # Step 2: Navigate to the project directory.
-cd br-vote-web3
+cd brazil-vote-web3
 
 # Step 3: Install the necessary dependencies.
 npm i
