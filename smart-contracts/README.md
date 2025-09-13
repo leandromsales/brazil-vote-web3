@@ -99,7 +99,7 @@ smart-contracts/
 
 - ✅ Token padrão ERC-20 com queima
 - ✅ Registro de eleitores elegíveis
-- ✅ Distribuição automática de 10 tokens por eleitor
+- ✅ Distribuição automática de 1 token por eleitor
 - ✅ Verificação de elegibilidade
 - ✅ Funções de mint/burn controladas
 

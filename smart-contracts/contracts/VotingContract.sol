@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -158,7 +158,6 @@ contract VotingContract is Ownable, ReentrancyGuard {
     
     /**
      * @dev Obtém resultados completos da votação
-     * @return Arrays com dados de todos os candidatos
      */
     function getResults() 
         external 
@@ -197,7 +196,6 @@ contract VotingContract is Ownable, ReentrancyGuard {
     
     /**
      * @dev Obtém informações gerais da votação
-     * @return Dados gerais da votação
      */
     function getVotingInfo() 
         external 

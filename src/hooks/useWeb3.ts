@@ -17,10 +17,10 @@ export interface Web3State {
 // Parâmetros do contrato inteligente
 const CONTRACT_CONFIG = {
   // IMPORTANTE: Substituir pelos endereços reais dos contratos deployados
-  // Endereço do contrato de votação (substituir pelo real)
-  VOTING_CONTRACT: '0x742d35Cc6ab3b1522569CC6e2df3Ec89b9Ba1234',
   // Endereço do token BRTV - usando USDC Sepolia como exemplo real
-  BRTV_CONTRACT: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8',
+  BRTV_CONTRACT: '0xc6e7DF5E7b4f2A278906862b61205850344D4e7d',
+  // Endereço do contrato de votação (substituir pelo real)
+  VOTING_CONTRACT: '0x59b670e9fA9D0A427751Af201D676719a970857b',
   // Gas limit para transações
   GAS_LIMIT: '300000',
   // Rede (1 = mainnet, 11155111 = sepolia testnet, 31337 = localhost)
