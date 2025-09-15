@@ -244,3 +244,8 @@ Para dúvidas e suporte:
 ---
 
 **⚠️ IMPORTANTE:** Este é um projeto educacional. Para uso em produção, realize auditoria de segurança profissional.
+
+## Relevant links
+
+- [Custom Block Explorer](https://github.com/Shaivpidadi/custom-block-explorer)
+- [Ethernal](https://app.tryethernal.com/)
