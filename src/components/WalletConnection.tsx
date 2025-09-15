@@ -1,16 +1,29 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Wallet, Coins } from 'lucide-react';
+import { NetworkSelector } from './NetworkSelector';
 
 interface WalletConnectionProps {
   isConnected: boolean;
   account: string | null;
   brtv_balance: number;
   isLoading: boolean;
+  selectedNetwork: string;
+  network: string | null;
   connectWallet: () => void | Promise<void>;
+  selectNetwork: (networkKey: string) => void;
 }
 
-export function WalletConnection({ isConnected, account, brtv_balance, isLoading, connectWallet }: WalletConnectionProps) {
+export function WalletConnection({ 
+  isConnected, 
+  account, 
+  brtv_balance, 
+  isLoading, 
+  selectedNetwork, 
+  network, 
+  connectWallet, 
+  selectNetwork 
+}: WalletConnectionProps) {
 
   if (!isConnected) {
     return (
@@ -21,13 +34,21 @@ export function WalletConnection({ isConnected, account, brtv_balance, isLoading
           <p className="mb-4 opacity-90">
             Conecte sua carteira MetaMask para participar da votação
           </p>
-          <Button 
-            onClick={connectWallet}
-            disabled={isLoading}
-            className="bg-white text-urna-dark hover:bg-gray-100"
-          >
-            {isLoading ? 'Conectando...' : 'Conectar MetaMask'}
-          </Button>
+          
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <NetworkSelector
+              selectedNetwork={selectedNetwork}
+              onNetworkSelect={selectNetwork}
+              isConnected={isConnected}
+            />
+            <Button 
+              onClick={connectWallet}
+              disabled={isLoading}
+              className="bg-white text-urna-dark hover:bg-gray-100"
+            >
+              {isLoading ? 'Conectando...' : 'Conectar MetaMask'}
+            </Button>
+          </div>
         </div>
       </Card>
     );
@@ -43,11 +64,14 @@ export function WalletConnection({ isConnected, account, brtv_balance, isLoading
             <div className="text-sm opacity-90">
               {account?.slice(0, 6)}...{account?.slice(-4)}
             </div>
+            <div className="text-xs opacity-75">
+              Rede: {network}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Coins className="w-5 h-5" />
-          <span className="font-bold">{brtv_balance} BRTV</span>
+          <span className="font-bold">{brtv_balance.toFixed(2)} BRTV</span>
         </div>
       </div>
     </Card>

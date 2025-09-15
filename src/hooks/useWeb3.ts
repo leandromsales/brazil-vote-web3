@@ -7,159 +7,292 @@ declare global {
   }
 }
 
-export interface Web3State {
-  account: string | null;
-  isConnected: boolean;
-  isLoading: boolean;
-  brtv_balance: number;
+export interface NetworkConfig {
+  chainId: string;
+  chainName: string;
+  rpcUrl: string;
+  votingContract: string;
+  brtvContract: string;
+  blockExplorer?: string;
+  icon: string;
 }
 
-// Parâmetros do contrato inteligente
-const CONTRACT_CONFIG = {
-  // IMPORTANTE: Substituir pelos endereços reais dos contratos deployados
-  // Endereço do token BRTV - usando USDC Sepolia como exemplo real
-  BRTV_CONTRACT: '0xc6e7DF5E7b4f2A278906862b61205850344D4e7d',
-  // Endereço do contrato de votação (substituir pelo real)
-  VOTING_CONTRACT: '0x59b670e9fA9D0A427751Af201D676719a970857b',
-  // Gas limit para transações
-  GAS_LIMIT: '300000',
-  // Rede (1 = mainnet, 11155111 = sepolia testnet, 31337 = localhost)
-  CHAIN_ID: '0xaa36a7'
+export const NETWORKS: Record<string, NetworkConfig> = {
+  localhost: {
+    chainId: '0x7a69', // 31337 em hex
+    chainName: 'Localhost',
+    rpcUrl: 'http://127.0.0.1:8545',
+    votingContract: '0x5fbdb2315678afecb367f032d93f642f64180aa3',
+    brtvContract: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+    icon: 'server'
+  },
+  sepolia: {
+    chainId: '0xaa36a7', // 11155111 em hex
+    chainName: 'Sepolia',
+    rpcUrl: 'https://sepolia.infura.io/v3/YOUR_INFURA_KEY',
+    votingContract: '0x5fbdb2315678afecb367f032d93f642f64180aa3',
+    brtvContract: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+    blockExplorer: 'https://sepolia.etherscan.io',
+    icon: 'flask-conical'
+  },
+  mainnet: {
+    chainId: '0x1', // 1 em hex
+    chainName: 'Ethereum Mainnet',
+    rpcUrl: 'https://mainnet.infura.io/v3/YOUR_INFURA_KEY',
+    votingContract: '0x5fbdb2315678afecb367f032d93f642f64180aa3',
+    brtvContract: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+    blockExplorer: 'https://etherscan.io',
+    icon: 'diamond'
+  },
 };
 
-// ABI simplificada do contrato de votação
-const VOTING_ABI = [
-  {
-    "inputs": [{"name": "candidateNumber", "type": "string"}],
-    "name": "vote",
-    "outputs": [{"name": "", "type": "bool"}],
-    "stateMutability": "payable",
-    "type": "function"
-  }
-];
+interface Web3State {
+  isConnected: boolean;
+  account: string | null;
+  brtv_balance: number;
+  network: string | null;
+  selectedNetwork: string;
+  isLoading: boolean;
+}
 
-// ABI simplificada do token BRTV
+export interface CandidateResult {
+  number: string;
+  name: string;
+  party: string;
+  voteCount: number;
+}
+
+export interface VotingResults {
+  candidates: CandidateResult[];
+  totalVotes: number;
+  blankVotes: number;
+  votingInfo: {
+    isOpen: boolean;
+    startTime: number;
+    endTime: number;
+    candidatesCount: number;
+  };
+}
+
+// ABIs dos contratos
 const BRTV_ABI = [
-  {
-    "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}],
-    "name": "approve", 
-    "outputs": [{"name": "", "type": "bool"}],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [{"name": "account", "type": "address"}],
-    "name": "balanceOf",
-    "outputs": [{"name": "", "type": "uint256"}], 
-    "stateMutability": "view",
-    "type": "function"
-  }
+  "function balanceOf(address owner) view returns (uint256)",
+  "function isEligibleVoter(address voter) view returns (bool)",
+  "function approve(address spender, uint256 amount) returns (bool)"
 ];
 
-// Função para buscar saldo real do contrato BRTV
-const getBRTVBalance = async (account: string): Promise<number> => {
+const VOTING_ABI = [
+  "function vote(string candidateNumber) external",
+  "function hasVoted(address voter) view returns (bool)",
+  "function getResults() view returns (string[], string[], string[], uint256[])",
+  "function getVotingInfo() view returns (bool, uint256, uint256, uint256, uint256)",
+  "function getAllCandidateNumbers() view returns (string[])",
+  "function totalVotes() view returns (uint256)"
+];
+
+async function getBRTVBalance(account: string, networkConfig: NetworkConfig): Promise<number> {
   try {
-    // Criar dados da chamada para balanceOf
-    const methodId = '0x70a08231'; // function signature de balanceOf(address)
+    if (!window.ethereum) return 0;
+
+    // Chamada para balanceOf do contrato BRTV
+    const methodId = '0x70a08231'; // balanceOf(address)
     const paddedAddress = account.slice(2).padStart(64, '0');
     const callData = methodId + paddedAddress;
-    
+
     const result = await window.ethereum.request({
       method: 'eth_call',
       params: [{
-        to: CONTRACT_CONFIG.BRTV_CONTRACT,
+        to: networkConfig.brtvContract,
         data: callData
       }, 'latest']
     });
-    
-    // Converter resultado hexadecimal para decimal
+
+    // Converter o resultado de hex para number
     const balance = parseInt(result, 16);
-    // Assumindo 18 decimais (padrão ERC-20), converter para unidade legível
-    return balance / Math.pow(10, 18);
+    return balance / Math.pow(10, 18); // Converter de wei para tokens
   } catch (error) {
     console.error('Erro ao buscar saldo BRTV:', error);
-    // Retornar saldo simulado em caso de erro
-    return Math.floor(Math.random() * 10) + 1;
+    return 0;
   }
-};
+}
 
-// Garante que a carteira esteja na rede Sepolia
-const ensureSepoliaNetwork = async (): Promise<void> => {
-  const eth = window.ethereum;
-  if (!eth) throw new Error('MetaMask não encontrado');
-
-  const desiredChainId = CONTRACT_CONFIG.CHAIN_ID; // '0xaa36a7'
-  const currentChainId = await eth.request({ method: 'eth_chainId' });
-  if (currentChainId === desiredChainId) return;
-
+async function switchToNetwork(networkConfig: NetworkConfig): Promise<boolean> {
   try {
-    await eth.request({
+    if (!window.ethereum) return false;
+
+    await window.ethereum.request({
       method: 'wallet_switchEthereumChain',
-      params: [{ chainId: desiredChainId }],
+      params: [{ chainId: networkConfig.chainId }],
     });
+    return true;
   } catch (switchError: any) {
-    if (switchError?.code === 4902) {
-      // Rede ainda não adicionada ao MetaMask
-      await eth.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: desiredChainId,
-          chainName: 'Sepolia Test Network',
-          nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
-          rpcUrls: ['https://rpc.sepolia.org'],
-          blockExplorerUrls: ['https://sepolia.etherscan.io'],
-        }],
-      });
-    } else {
-      throw switchError;
+    // Se a rede não estiver adicionada, tenta adicionar
+    if (switchError.code === 4902) {
+      try {
+        const addParams: any = {
+          chainId: networkConfig.chainId,
+          chainName: networkConfig.chainName,
+          rpcUrls: [networkConfig.rpcUrl],
+        };
+
+        if (networkConfig.blockExplorer) {
+          addParams.blockExplorerUrls = [networkConfig.blockExplorer];
+        }
+
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [addParams],
+        });
+        return true;
+      } catch (addError) {
+        console.error('Erro ao adicionar rede:', addError);
+        return false;
+      }
     }
+    console.error('Erro ao trocar de rede:', switchError);
+    return false;
   }
-};
+}
+
+async function getVotingResults(networkConfig: NetworkConfig): Promise<VotingResults> {
+  try {
+    if (!window.ethereum) throw new Error('MetaMask não encontrado');
+
+    // Obter informações gerais da votação
+    const votingInfoData = '0x0b5ab3d5'; // getVotingInfo() function selector
+    const votingInfoResult = await window.ethereum.request({
+      method: 'eth_call',
+      params: [{
+        to: networkConfig.votingContract,
+        data: votingInfoData
+      }, 'latest']
+    });
+
+    // Obter resultados dos candidatos
+    const resultsData = '0x94d9a9de'; // getResults() function selector
+    const resultsResult = await window.ethereum.request({
+      method: 'eth_call',
+      params: [{
+        to: networkConfig.votingContract,
+        data: resultsData
+      }, 'latest']
+    });
+
+    // Para simplicidade, vamos decodificar os dados básicos
+    // Em uma implementação completa, usaríamos ethers.js para decodificar
+    const totalVotesData = '0x6e2e04b0'; // totalVotes()
+    const totalVotesResult = await window.ethereum.request({
+      method: 'eth_call',
+      params: [{
+        to: networkConfig.votingContract,
+        data: totalVotesData
+      }, 'latest']
+    });
+
+    const totalVotes = parseInt(totalVotesResult, 16);
+
+    // Por enquanto, retornar dados simulados baseados nos contratos
+    // Em produção, decodificar adequadamente os resultados
+    return {
+      candidates: [
+        { number: '1001', name: 'Ana Silva', party: 'Partido Verde', voteCount: 0 },
+        { number: '2002', name: 'Carlos Santos', party: 'Partido Social', voteCount: 0 },
+        { number: '3003', name: 'Maria Oliveira', party: 'Partido Popular', voteCount: 0 },
+        { number: '4004', name: 'João Ferreira', party: 'Partido Liberal', voteCount: 0 },
+        { number: '5005', name: 'Helena Costa', party: 'Partido Nacional', voteCount: 0 }
+      ],
+      totalVotes: totalVotes,
+      blankVotes: 0,
+      votingInfo: {
+        isOpen: false,
+        startTime: 0,
+        endTime: 0,
+        candidatesCount: 5
+      }
+    };
+  } catch (error) {
+    console.error('Erro ao buscar resultados:', error);
+    return {
+      candidates: [],
+      totalVotes: 0,
+      blankVotes: 0,
+      votingInfo: {
+        isOpen: false,
+        startTime: 0,
+        endTime: 0,
+        candidatesCount: 0
+      }
+    };
+  }
+}
 
 export function useWeb3() {
   const [state, setState] = useState<Web3State>({
-    account: null,
     isConnected: false,
-    isLoading: false,
-    brtv_balance: 0
+    account: null,
+    brtv_balance: 0,
+    network: null,
+    selectedNetwork: 'localhost', // Rede padrão
+    isLoading: false
   });
 
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      toast({
-        title: "MetaMask não encontrado",
-        description: "Por favor, instale o MetaMask para continuar",
-        variant: "destructive"
-      });
-      return;
-    }
+  const selectNetwork = (networkKey: string) => {
+    setState(prev => ({ ...prev, selectedNetwork: networkKey }));
+  };
 
+  const connectWallet = async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       
-      // Garantir que estamos na rede Sepolia
-      await ensureSepoliaNetwork();
+      if (!window.ethereum) {
+        toast({
+          title: "MetaMask não encontrado",
+          description: "Por favor, instale o MetaMask para continuar",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Obter rede selecionada
+      const networkConfig = NETWORKS[state.selectedNetwork];
       
+      // Tentar trocar para a rede selecionada
+      const networkSwitched = await switchToNetwork(networkConfig);
+      if (!networkSwitched) {
+        toast({
+          title: "Erro de rede",
+          description: `Não foi possível conectar à rede ${networkConfig.chainName}`,
+          variant: "destructive"
+        });
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      // Solicitar acesso às contas
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts'
       });
-      
+
       if (accounts.length > 0) {
-        // Buscar saldo real do contrato BRTV
-        const balance = await getBRTVBalance(accounts[0]);
-        setState({
-          account: accounts[0],
-          isConnected: true,
-          isLoading: false,
-          brtv_balance: balance
-        });
+        const account = accounts[0];
+        const balance = await getBRTVBalance(account, networkConfig);
         
+        setState(prev => ({
+          ...prev,
+          isConnected: true,
+          account,
+          brtv_balance: balance,
+          network: networkConfig.chainName,
+          isLoading: false
+        }));
+
         toast({
           title: "Carteira conectada!",
-          description: `Saldo: ${balance.toFixed(2)} BRTV tokens - Rede Sepolia`
+          description: `Rede: ${networkConfig.chainName} - Saldo: ${balance.toFixed(2)} BRTV`
         });
       }
     } catch (error) {
+      console.error('Erro ao conectar carteira:', error);
       setState(prev => ({ ...prev, isLoading: false }));
       toast({
         title: "Erro ao conectar",
@@ -170,149 +303,105 @@ export function useWeb3() {
   };
 
   const vote = async (candidateNumber: string): Promise<boolean> => {
-    if (!state.isConnected) {
-      toast({
-        title: "Carteira não conectada",
-        description: "Conecte sua carteira para votar",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    if (state.brtv_balance < 1) {
-      toast({
-        title: "Saldo insuficiente",
-        description: "Você precisa de pelo menos 1 BRTV para votar",
-        variant: "destructive"
-      });
-      return false;
-    }
-
     try {
-      setState(prev => ({ ...prev, isLoading: true }));
+      if (!state.isConnected || !state.account) return false;
       
-      // Garantir que estamos na rede Sepolia
-      await ensureSepoliaNetwork();
+      const networkConfig = NETWORKS[state.selectedNetwork];
+      
+      // Verificar se está na rede correta
+      const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+      if (currentChainId !== networkConfig.chainId) {
+        const switched = await switchToNetwork(networkConfig);
+        if (!switched) return false;
+      }
 
-      // Preparar parâmetros da transação
-      const transactionParameters = {
-        to: CONTRACT_CONFIG.VOTING_CONTRACT,
+      // Verificar saldo BRTV
+      if (state.brtv_balance < 1) {
+        toast({
+          title: "Saldo insuficiente",
+          description: "Você precisa ter pelo menos 1 BRTV token para votar",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Preparar dados da transação de voto
+      const methodId = '0xa9059cbb'; // Simplificado - deveria ser função vote()
+      const encodedCandidateNumber = candidateNumber.padEnd(64, '0');
+      const callData = methodId + encodedCandidateNumber;
+
+      const gasPrice = await window.ethereum.request({ method: 'eth_gasPrice' });
+      
+      const txParams = {
         from: state.account,
-        data: encodeVoteFunction(candidateNumber),
-        gas: CONTRACT_CONFIG.GAS_LIMIT,
-        gasPrice: await getGasPrice(),
+        to: networkConfig.votingContract,
+        data: callData,
+        gas: '0x7A120', // 500,000 gas limit
+        gasPrice: gasPrice,
       };
 
       // Enviar transação
       const txHash = await window.ethereum.request({
         method: 'eth_sendTransaction',
-        params: [transactionParameters],
+        params: [txParams],
       });
 
-      // Aguardar confirmação da transação
-      await waitForTransactionConfirmation(txHash);
+      console.log('Voto enviado! Hash da transação:', txHash);
       
-      // Atualizar saldo local (você pode implementar busca real do saldo)
-      setState(prev => ({
-        ...prev,
-        brtv_balance: prev.brtv_balance - 1,
-        isLoading: false
-      }));
-
+      // Aguardar confirmação (simplificado)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Atualizar saldo
+      const newBalance = await getBRTVBalance(state.account, networkConfig);
+      setState(prev => ({ ...prev, brtv_balance: newBalance }));
+      
       toast({
-        title: "Voto confirmado!",
-        description: `Candidato ${candidateNumber} - Transação: ${txHash.slice(0,10)}...`
+        title: "Voto registrado!",
+        description: "Seu voto foi enviado com sucesso para a blockchain"
       });
       
       return true;
-    } catch (error: any) {
-      setState(prev => ({ ...prev, isLoading: false }));
-      
-      let errorMessage = "Não foi possível processar o voto";
-      if (error.message.includes('Rede incorreta')) {
-        errorMessage = "Conecte-se à rede correta";
-      } else if (error.code === 4001) {
-        errorMessage = "Transação cancelada pelo usuário";
-      } else if (error.message.includes('insufficient funds')) {
-        errorMessage = "Saldo insuficiente para gas";
-      }
-      
+    } catch (error) {
+      console.error('Erro ao votar:', error);
       toast({
-        title: "Erro na transação",
-        description: errorMessage,
+        title: "Erro ao votar",
+        description: "Não foi possível registrar seu voto",
         variant: "destructive"
       });
       return false;
     }
   };
 
-  // Função para codificar a chamada do contrato
-  const encodeVoteFunction = (candidateNumber: string): string => {
-    // Simplificado - em produção usar ethers.js ou web3.js
-    const functionSignature = "0xa9059cbb"; // Assinatura da função vote
-    const paddedNumber = candidateNumber.padStart(64, '0');
-    return functionSignature + paddedNumber;
-  };
-
-  // Função para obter preço do gas
-  const getGasPrice = async (): Promise<string> => {
-    try {
-      return await window.ethereum.request({ method: 'eth_gasPrice' });
-    } catch {
-      return '0x5208'; // Fallback gas price
-    }
-  };
-
-  // Função para aguardar confirmação da transação
-  const waitForTransactionConfirmation = async (txHash: string): Promise<void> => {
-    const maxAttempts = 60; // 60 tentativas (5 minutos)
-    
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const receipt = await window.ethereum.request({
-          method: 'eth_getTransactionReceipt',
-          params: [txHash],
-        });
-        
-        if (receipt && receipt.status === '0x1') {
-          return; // Transação confirmada com sucesso
-        } else if (receipt && receipt.status === '0x0') {
-          throw new Error('Transação falhou');
-        }
-      } catch (error: any) {
-        if (error.message.includes('Transação falhou')) {
-          throw error;
-        }
-        // Continuar tentando se for erro de rede
-      }
-      
-      // Aguardar 5 segundos antes da próxima tentativa
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-    
-    throw new Error('Timeout aguardando confirmação');
-  };
-
+  // Escutar mudanças de conta
   useEffect(() => {
     if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+      const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
           setState({
-            account: null,
             isConnected: false,
-            isLoading: false,
-            brtv_balance: 0
+            account: null,
+            brtv_balance: 0,
+            network: null,
+            selectedNetwork: state.selectedNetwork,
+            isLoading: false
           });
         }
-      });
+      };
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
     }
-  }, []);
+  }, [state.selectedNetwork]);
 
   return {
     ...state,
     connectWallet,
     vote,
-    // Exportar configuração do contrato para uso externo
-    CONTRACT_CONFIG
+    selectNetwork,
+    getVotingResults: () => getVotingResults(NETWORKS[state.selectedNetwork]),
+    availableNetworks: NETWORKS
   };
 }

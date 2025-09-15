@@ -12,7 +12,7 @@ import { BarChart3 } from 'lucide-react';
 export default function Voting() {
   const [currentNumber, setCurrentNumber] = useState('');
   const [voteStatus, setVoteStatus] = useState<'idle' | 'confirming' | 'success' | 'error'>('idle');
-  const { isConnected, account, brtv_balance, isLoading, connectWallet, vote } = useWeb3();
+  const { isConnected, account, brtv_balance, isLoading, selectedNetwork, network, connectWallet, vote, selectNetwork } = useWeb3();
 
   const selectedCandidate = candidates.find(c => c.number === currentNumber);
 
@@ -89,7 +89,10 @@ export default function Voting() {
           account={account}
           brtv_balance={brtv_balance}
           isLoading={isLoading}
+          selectedNetwork={selectedNetwork}
+          network={network}
           connectWallet={connectWallet}
+          selectNetwork={selectNetwork}
         />
       </div>
 
